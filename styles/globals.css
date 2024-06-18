@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+
+@font-face {
+  font-family: 'font-IT';
+  src: url('/tt_octosquares/TT Octosquares Trial Condensed Medium.ttf');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))) rgb(var(--background-start-rgb));
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+.ps-sidebar-root {
+  border: none !important;
+}
+
+.ps-sidebar-container {
+  border-radius: 10px !important;
+}
+
+/*----------------- Wallet button----------------- */
+.wallet-btn {
+  border-radius: 6px;
+  border-color: none;
+  background: var(--linear, linear-gradient(225deg, #0DC89C 0%, #5EFDFC 100%));
+}
+
+.wallet-btn:hover {
+  border-radius: 6px;
+  background: linear-gradient(225deg, rgba(13, 200, 156, 0.50) 0%, rgba(94, 253, 252, 0.50) 100%);
+  backdrop-filter: blur(7.5px);
+}
+
+.wallet-adapter-button.wallet-custom {
+  background: var(--linear, linear-gradient(225deg, #0DC89C 0%, #5EFDFC 100%));
+  /* background: #022626; */
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  border-radius: 6px;
+  padding-right: 1rem !important;
+  padding-left: 1rem !important;
+  padding-top: 0.rem;
+  padding-bottom: 0.1rem;
+  position: relative;
+}
+
+.wallet-adapter-dropdown {
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .wallet-adapter-button.wallet-custom {
+    height: 2.75rem !important;
+  }
+}
+
+.wallet-adapter-button.wallet-custom::before {
+  background: #fdfdfd;
+  content: var(--tw-content);
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  border-radius: 0.75em;
+}
+
+.wallet-adapter-button.wallet-custom:not([disabled]):hover {
+  background: linear-gradient(225deg, rgba(13, 200, 156, 0.50) 0%, rgba(94, 253, 252, 0.50) 100%);
+
+  box-shadow: 0px 13.137px 21.895px rgba(0, 0, 0, 0.09);
+}
+
+.wallet-adapter-button.wallet-custom:not([disabled]):hover::before {
+  opacity: 0.05;
+}
