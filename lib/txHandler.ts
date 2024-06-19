@@ -4,7 +4,7 @@ import { BaseRay } from "../base/baseRay";
 import { BaseSpl } from "../base/baseSpl";
 import { Result } from "../base/types";
 import base58 from "bs58"
-import { AddLiquidityInput, BundleRes, CreateAndBuy, CreateMarketInput, CreatePoolInput, CreatePoolInputAndProvide, CreateTokenInput, UpdateTokenInput, MintTokenInput, RFTokenInput, RemoveLiquidityInput, SwapInput } from "./types";
+import { AddLiquidityInput, BundleRes, CreateAndBuy, CreateMarketInput, CreatePoolInput, CreatePoolInputAndProvide, CreateTokenInput, CreateTaxTokenInput, UpdateTokenInput, MintTokenInput, RFTokenInput, RemoveLiquidityInput, SwapInput } from "./types";
 import { calcDecimalValue, sendAndConfirmTX, sleep } from "./utils";
 import { Metadata, TokenStandard } from "@metaplex-foundation/mpl-token-metadata";
 import { AccountLayout, MintLayout, NATIVE_MINT, TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction, createCloseAccountInstruction, getAssociatedTokenAddressSync } from '@solana/spl-token'
@@ -12,9 +12,27 @@ import { AccountLayout, MintLayout, NATIVE_MINT, TOKEN_PROGRAM_ID, createAssocia
 // import { bundle } from "jito-ts";
 import { Liquidity, LiquidityPoolInfo, Percent, Token, TokenAmount } from "@raydium-io/raydium-sdk";
 import BN from "bn.js";
-import { Keypair, PublicKey } from '@solana/web3.js';
+import { Keypair, PublicKey, Transaction, Connection, SystemProgram } from '@solana/web3.js';
 import { createMintToCheckedInstruction, getMint } from "@solana/spl-token";
-import bs58 from 'bs58'
+
+import {
+    ExtensionType,
+    createInitializeMintInstruction,
+    mintTo,
+    createAccount,
+    getMintLen,
+    getTransferFeeAmount,
+    unpackAccount,
+    TOKEN_2022_PROGRAM_ID,
+    createInitializeTransferFeeConfigInstruction,
+    harvestWithheldTokensToMint,
+    transferCheckedWithFee,
+    withdrawWithheldTokensFromAccounts,
+    withdrawWithheldTokensFromMint,
+    getOrCreateAssociatedTokenAccount,
+    createAssociatedTokenAccountIdempotent
+} from '@solana/spl-token';
+
 import { BLOCKENGINE_URL, JITO_AUTH_KEYPAIR } from "./constant";
 import { solanaConnection, devConnection, createLAT } from "./utils";
 import { VersionedTransaction } from "@solana/web3.js";
@@ -45,6 +63,81 @@ export async function createToken(input: CreateTokenInput) {
             freezeRevokeAuthorities,
         })
         return res;
+    }
+    catch (error) {
+        log({ error })
+        // return { Err: "failed to create the token" }
+    }
+}
+
+export async function createTaxToken(input: CreateTaxTokenInput) {
+    try {
+        const { name, symbol, decimals, url, metaUri, initialMintingAmount, feeRate, maxFee, authWallet, withdrawWallet, useExtenstion, permanentWallet, defaultAccountState, bearingRate, transferable, wallet } = input;
+        const endpoint = url == 'mainnet' ? solanaConnection.rpcEndpoint : devConnection.rpcEndpoint
+
+        // Initialize connection to local Solana node
+        const connection = new Connection(endpoint, 'confirmed');
+
+        // Generate keys for payer, mint authority, and mint
+        const payer = wallet;
+        const mintAuthority = authWallet;
+        const mintKeypair = Keypair.generate();
+        const mint = mintKeypair.publicKey;
+
+        // Generate keys for transfer fee config authority and withdrawal authority
+        const transferFeeConfigAuthority = authWallet;
+        const withdrawWithheldAuthority = authWallet;
+
+        // Define the extensions to be used by the mint
+        const extensions = [
+            ExtensionType.TransferFeeConfig,
+        ];
+
+        // Calculate the length of the mint
+        const mintLen = getMintLen(extensions);
+
+        // Set the decimals, fee basis points, and maximum fee
+        const feeBasisPoints = 100 * feeRate; // 1%
+        const maxFees = BigInt(maxFee * Math.pow(10, decimals)); // 9 tokens
+
+        // Define the amount to be minted and the amount to be transferred, accounting for decimals
+        const mintAmount = BigInt(initialMintingAmount * Math.pow(10, decimals)); // Mint 1,000,000 tokens
+
+
+        // Step 2 - Create a New Token
+        const mintLamports = await connection.getMinimumBalanceForRentExemption(mintLen);
+        const mintTransaction = new Transaction().add(
+            SystemProgram.createAccount({
+                fromPubkey: payer.publicKey,
+                newAccountPubkey: mint,
+                space: mintLen,
+                lamports: mintLamports,
+                programId: TOKEN_2022_PROGRAM_ID,
+            }),
+            createInitializeTransferFeeConfigInstruction(
+                mint,
+                transferFeeConfigAuthority,
+                withdrawWithheldAuthority,
+                feeBasisPoints,
+                maxFees,
+                TOKEN_2022_PROGRAM_ID
+            ),
+            createInitializeMintInstruction(mint, decimals, mintAuthority, null, TOKEN_2022_PROGRAM_ID)
+        );
+
+        const recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+
+        const tx = new Transaction().add(mintTransaction);
+        tx.feePayer = wallet;
+        tx.recentBlockhash = recentBlockhash;
+        tx.sign(mintKeypair);
+
+        console.log("tx---------->>>>", tx);
+
+        const simRes = (await connection.simulateTransaction(tx)).value
+        console.log('remove l', simRes)
+
+        return tx;
     }
     catch (error) {
         log({ error })

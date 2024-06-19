@@ -5,11 +5,6 @@ import { Keypair, PublicKey } from "@solana/web3.js"
 export type CreateTokenInput = {
     name: string,
     symbol?: string,
-    // image?: string
-    // website?: string
-    // twitter?: string
-    // telegram?: string
-    // description?: string
     decimals: number
     url: 'mainnet' | 'devnet',
     metaUri: string,
@@ -18,7 +13,25 @@ export type CreateTokenInput = {
     freezeRevokeAuthorities?: boolean,
     mutable: boolean,
     wallet: any
-    // keyAuth: string
+}
+
+export type CreateTaxTokenInput = {
+    name: string,
+    symbol?: string,
+    decimals: number
+    url: 'mainnet' | 'devnet',
+    metaUri: string,
+    initialMintingAmount: number,
+    feeRate: number,
+    maxFee: number,
+    authWallet: web3.PublicKey,
+    withdrawWallet: web3.PublicKey,
+    useExtenstion: boolean,
+    permanentWallet?: web3.PublicKey,
+    defaultAccountState?: number,
+    bearingRate?: number, 
+    transferable?: boolean,
+    wallet: any
 }
 
 export type UpdateTokenInput = {

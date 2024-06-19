@@ -8,9 +8,12 @@ import { FaUpload } from "react-icons/fa6";
 import { toast } from 'react-toastify';
 import ProSidebar from "@/components/ProSidebar";
 import Header from "@/components/Header";
+import { useWallet, useAnchorWallet } from "@solana/wallet-adapter-react";
 import { PINATA_API_KEY } from "@/lib/constant";
 import ImageUploading from 'react-images-uploading';
 import SimpleBar from 'simplebar-react';
+import { createTaxToken } from "@/lib/txHandler";
+import { solanaConnection } from "@/lib/utils";
 
 const toastError = (str: string) => {
   toast.error(str, {
@@ -24,23 +27,11 @@ const toastSuccess = (str: string) => {
   });
 }
 
-const animals = [
-  { key: "cat", label: "Cat" },
-  { key: "dog", label: "Dog" },
-  { key: "elephant", label: "Elephant" },
-  { key: "lion", label: "Lion" },
-  { key: "tiger", label: "Tiger" },
-  { key: "giraffe", label: "Giraffe" },
-  { key: "dolphin", label: "Dolphin" },
-  { key: "penguin", label: "Penguin" },
-  { key: "zebra", label: "Zebra" },
-  { key: "shark", label: "Shark" },
-  { key: "whale", label: "Whale" },
-  { key: "otter", label: "Otter" },
-  { key: "crocodile", label: "Crocodile" }
-];
-
 export default function Home() {
+
+  const wallet = useWallet();
+  const anchorWallet = useAnchorWallet();
+
 
   const [loading, setLoading] = useState(false);
   const [uploadingStatus, setUploadLoading] = useState(false);
@@ -58,13 +49,6 @@ export default function Home() {
   const [permanentAddress, setPermanentAddress] = useState("");
   const [bearingRate, setBearingRate] = useState(0);
   const [metaDataURL, setMetaDataURL] = useState("");
-
-  const [socialState, setSocialState] = useState({
-    website: '',
-    twitter: '',
-    telegram: '',
-    discord: ''
-  });
 
   const [images, setImages] = useState([]);
   const [isSelected, setIsSelected] = useState(true);
@@ -133,6 +117,88 @@ export default function Home() {
       throw error;
     }
   };
+
+  const validator = async () => {
+    if (!mintTokenName) {
+      toastError("Please enter the token name");
+      return false;
+    }
+    if (!mintTokenSymbol) {
+      toastError("Please enter the token symbol");
+      return false;
+    }
+    if (mintTokenDecimal <= 0) {
+      toastError("Please enter a valid token decimal");
+      return false;
+    }
+    if (mintTokenSupply <= 0) {
+      toastError("Please enter a valid token supply");
+      return false;
+    }
+    if (images.length === 0) {
+      toastError("Please upload the token logo");
+      return false;
+    }
+    if (!mintTokenDesc) {
+      toastError("Please enter the token description");
+      return false;
+    }
+    if (txFee < 0 || txFee >= 100) {
+      toastError("Please select correct fee rate.");
+      return false;
+    }
+    return true;
+  }
+
+  const createToken = async () => {
+    if (!wallet.publicKey) {
+      toastError("Wallet not connected!")
+      return;
+    }
+    const validationFlag = await validator();
+    if (validationFlag == false) {
+      return;
+    }
+
+    // setLoading(true);
+
+    const imgURL = await handleSetMetaData();
+    const uploadedJsonUrl = await uploadJsonToPinata({
+      name: mintTokenName,
+      symbol: mintTokenSymbol,
+      description: mintTokenDesc,
+      image: imgURL
+    });
+
+    const tx = await createTaxToken({
+      name: mintTokenName, symbol: mintTokenSymbol, decimals: mintTokenDecimal, url: "devnet", metaUri: pinataPublicURL + uploadedJsonUrl, initialMintingAmount: mintTokenSupply, feeRate: txFee, maxFee, authWallet: new PublicKey(authWallet), withdrawWallet: new PublicKey(withdrawWallet), useExtenstion: isSelected, permanentWallet: new PublicKey(permanentAddress), defaultAccountState: 1, bearingRate, transferable: isTranserSelected, wallet: anchorWallet
+    });
+    if (tx) {
+      if (anchorWallet) {
+        try {
+          console.log("tx===========>>>>>>", tx);
+          let stx = (await anchorWallet.signTransaction(tx)).serialize();
+
+          const options = {
+            commitment: "confirmed",
+            skipPreflight: true,
+          };
+
+          const txId = await solanaConnection.sendRawTransaction(stx, options);
+          await solanaConnection.confirmTransaction(txId, "confirmed");
+          setLoading(false);
+          toastSuccess(`${mintTokenName} token created successfully!`);
+          console.log("txId======>>", txId);
+
+        } catch (error: any) {
+          toastError(`${error.message}`);
+          setLoading(false);
+        }
+
+      }
+    }
+
+  }
 
   return (
     <main
@@ -249,7 +315,9 @@ export default function Home() {
                 label="Fee %: (10 = 10% per transaction):"
                 placeholder="Put fee"
                 labelPlacement={'outside'}
-                className=" h-[40px]  col-span-6"
+                className=" h-[40px] col-span-6"
+                min={0}
+                max={99.9}
                 defaultValue="0"
                 onChange={(e) => { setTxFee(Number(e.target.value)); }}
 
@@ -326,7 +394,7 @@ export default function Home() {
                 </div>
               </div> : null}
               <div className=" flex w-full justify-center col-span-12 pt-5">
-                <Button color="primary" fullWidth className=" text-[18px]" onClick={() => { }} isLoading={uploadingStatus || loading}>
+                <Button color="primary" fullWidth className=" text-[18px]" onClick={() => { createToken() }} isLoading={uploadingStatus || loading}>
                   {uploadingStatus ? "Uploading Metadata" : loading ? "Creating Tax Token" : "Create Tax Token"}
                 </Button>
               </div>
