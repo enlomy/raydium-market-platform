@@ -23,7 +23,8 @@ const toastError = (str: string) => {
 
 const toastSuccess = (str: string) => {
   toast.success(str, {
-    position: "top-center"
+    position: "top-center",
+    autoClose: false
   });
 }
 
@@ -51,8 +52,8 @@ export default function Home() {
   const [metaDataURL, setMetaDataURL] = useState("");
 
   const [images, setImages] = useState([]);
-  const [isSelected, setIsSelected] = useState(true);
-  const [isTranserSelected, setIsTransferSelected] = useState(true);
+  const [isSelected, setIsSelected] = useState(false);
+  const [isTranserSelected, setIsTransferSelected] = useState(false);
 
   const maxNumber = 1;
 
@@ -170,14 +171,14 @@ export default function Home() {
       image: imgURL
     });
 
-    const tx = await createTaxToken({
+    const res = await createTaxToken({
       name: mintTokenName, symbol: mintTokenSymbol, decimals: mintTokenDecimal, url: "devnet", metaUri: pinataPublicURL + uploadedJsonUrl, initialMintingAmount: mintTokenSupply, feeRate: txFee, maxFee, authWallet: new PublicKey(authWallet), withdrawWallet: new PublicKey(withdrawWallet), useExtenstion: isSelected, permanentWallet: new PublicKey(permanentAddress), defaultAccountState: 1, bearingRate, transferable: isTranserSelected, wallet: anchorWallet
     });
-    if (tx) {
+    if (res) {
       if (anchorWallet) {
         try {
-          console.log("tx===========>>>>>>", tx);
-          let stx = (await anchorWallet.signTransaction(tx)).serialize();
+          console.log("tx===========>>>>>>", res);
+          let stx = (await anchorWallet.signTransaction(res.mintTransaction)).serialize();
 
           const options = {
             commitment: "confirmed",
@@ -187,7 +188,7 @@ export default function Home() {
           const txId = await solanaConnection.sendRawTransaction(stx, options);
           await solanaConnection.confirmTransaction(txId, "confirmed");
           setLoading(false);
-          toastSuccess(`${mintTokenName} token created successfully!`);
+          toastSuccess(`${res.mint.toBase58()} token created successfully!`);
           console.log("txId======>>", txId);
 
         } catch (error: any) {

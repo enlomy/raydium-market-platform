@@ -17,7 +17,7 @@ export type CreateTokenInput = {
 
 export type CreateTaxTokenInput = {
     name: string,
-    symbol?: string,
+    symbol: string,
     decimals: number
     url: 'mainnet' | 'devnet',
     metaUri: string,

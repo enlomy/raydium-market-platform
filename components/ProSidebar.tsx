@@ -37,7 +37,7 @@ export default function ProSidebar() {
                     <MenuItem onClick={() => { route.push('/token-mint'); }}> Revoke Freeze Authority </MenuItem>
                     <MenuItem onClick={() => { route.push('/token-mint'); }}> Revoke Mint Authority </MenuItem>
                     <MenuItem onClick={() => { route.push('/token-mint'); }}> Make Token Immutable </MenuItem>
-                    {/* <MenuItem onClick={() => { route.push('/tax-token'); }}> Tax Token Creator </MenuItem> */}
+                    <MenuItem onClick={() => { route.push('/tax-token'); }}> Tax Token Creator </MenuItem>
                     <MenuItem onClick={() => { route.push('/add-liquidity'); }}> Solana Liquidity Remover </MenuItem>
                     <MenuItem onClick={() => { route.push('/add-liquidity'); }}> Solana Liquidity Adder </MenuItem>
                     <MenuItem onClick={() => { route.push('/token-mint'); }}> Token Mint</MenuItem>

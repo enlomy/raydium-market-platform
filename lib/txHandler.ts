@@ -5,16 +5,15 @@ import { BaseSpl } from "../base/baseSpl";
 import { Result } from "../base/types";
 import base58 from "bs58"
 import { AddLiquidityInput, BundleRes, CreateAndBuy, CreateMarketInput, CreatePoolInput, CreatePoolInputAndProvide, CreateTokenInput, CreateTaxTokenInput, UpdateTokenInput, MintTokenInput, RFTokenInput, RemoveLiquidityInput, SwapInput } from "./types";
-import { calcDecimalValue, sendAndConfirmTX, sleep } from "./utils";
+// import { calcDecimalValue, sendAndConfirmTX, sleep } from "./utils";
 import { Metadata, TokenStandard } from "@metaplex-foundation/mpl-token-metadata";
-import { AccountLayout, MintLayout, NATIVE_MINT, TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction, createCloseAccountInstruction, getAssociatedTokenAddressSync } from '@solana/spl-token'
+import { AccountLayout, MintLayout, NATIVE_MINT, TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction, createCloseAccountInstruction, getAssociatedTokenAddressSync, createMintToCheckedInstruction, getMint, createInitializePermanentDelegateInstruction } from '@solana/spl-token'
 // import { searcherClient } from "jito-ts/dist/sdk/block-engine/searcher";
 // import { bundle } from "jito-ts";
 import { Liquidity, LiquidityPoolInfo, Percent, Token, TokenAmount } from "@raydium-io/raydium-sdk";
 import BN from "bn.js";
-import { Keypair, PublicKey, Transaction, Connection, SystemProgram } from '@solana/web3.js';
-import { createMintToCheckedInstruction, getMint } from "@solana/spl-token";
-
+import { Keypair, PublicKey, Transaction, Connection, SystemProgram, LAMPORTS_PER_SOL, sendAndConfirmTransaction } from '@solana/web3.js';
+import type { TokenMetadata } from '@solana/spl-token-metadata';
 import {
     ExtensionType,
     createInitializeMintInstruction,
@@ -30,8 +29,22 @@ import {
     withdrawWithheldTokensFromAccounts,
     withdrawWithheldTokensFromMint,
     getOrCreateAssociatedTokenAccount,
-    createAssociatedTokenAccountIdempotent
+    createAssociatedTokenAccountIdempotent,
+    createInitializeMetadataPointerInstruction,
+    LENGTH_SIZE,
+    TYPE_SIZE,
+    AccountState,
+    createInitializeDefaultAccountStateInstruction,
+    createInitializeNonTransferableMintInstruction
 } from '@solana/spl-token';
+
+import {
+    createInitializeInstruction,
+    pack,
+    createUpdateFieldInstruction,
+    createRemoveKeyInstruction,
+} from '@solana/spl-token-metadata';
+
 
 import { BLOCKENGINE_URL, JITO_AUTH_KEYPAIR } from "./constant";
 import { solanaConnection, devConnection, createLAT } from "./utils";
@@ -73,28 +86,44 @@ export async function createToken(input: CreateTokenInput) {
 export async function createTaxToken(input: CreateTaxTokenInput) {
     try {
         const { name, symbol, decimals, url, metaUri, initialMintingAmount, feeRate, maxFee, authWallet, withdrawWallet, useExtenstion, permanentWallet, defaultAccountState, bearingRate, transferable, wallet } = input;
-        const endpoint = url == 'mainnet' ? solanaConnection.rpcEndpoint : devConnection.rpcEndpoint
+        const endpoint = url == 'mainnet' ? solanaConnection.rpcEndpoint : devConnection.rpcEndpoint;
+
+        console.log("input=========>>>", input);
 
         // Initialize connection to local Solana node
         const connection = new Connection(endpoint, 'confirmed');
 
+
         // Generate keys for payer, mint authority, and mint
         const payer = wallet;
-        const mintAuthority = authWallet;
         const mintKeypair = Keypair.generate();
         const mint = mintKeypair.publicKey;
 
         // Generate keys for transfer fee config authority and withdrawal authority
         const transferFeeConfigAuthority = authWallet;
-        const withdrawWithheldAuthority = authWallet;
+        const withdrawWithheldAuthority = withdrawWallet;
 
         // Define the extensions to be used by the mint
         const extensions = [
             ExtensionType.TransferFeeConfig,
+            ExtensionType.MetadataPointer
         ];
+
+        if (permanentWallet) {
+            extensions.push(ExtensionType.PermanentDelegate)
+        }
+
+        if (useExtenstion) {
+            extensions.push(ExtensionType.DefaultAccountState)
+        }
+
+        if (transferable) {
+            extensions.push(ExtensionType.NonTransferable)
+        }
 
         // Calculate the length of the mint
         const mintLen = getMintLen(extensions);
+        console.log("mintLen====?>>>", mintLen);
 
         // Set the decimals, fee basis points, and maximum fee
         const feeBasisPoints = 100 * feeRate; // 1%
@@ -103,9 +132,19 @@ export async function createTaxToken(input: CreateTaxTokenInput) {
         // Define the amount to be minted and the amount to be transferred, accounting for decimals
         const mintAmount = BigInt(initialMintingAmount * Math.pow(10, decimals)); // Mint 1,000,000 tokens
 
+        const metadata: TokenMetadata = {
+            mint: mint,
+            name: name,
+            symbol: symbol,
+            uri: metaUri,
+            additionalMetadata: []
+        };
+
+        const metadataLen = TYPE_SIZE + LENGTH_SIZE + pack(metadata).length;
 
         // Step 2 - Create a New Token
-        const mintLamports = await connection.getMinimumBalanceForRentExemption(mintLen);
+        const mintLamports = await connection.getMinimumBalanceForRentExemption(mintLen + metadataLen);
+
         const mintTransaction = new Transaction().add(
             SystemProgram.createAccount({
                 fromPubkey: payer.publicKey,
@@ -114,6 +153,12 @@ export async function createTaxToken(input: CreateTaxTokenInput) {
                 lamports: mintLamports,
                 programId: TOKEN_2022_PROGRAM_ID,
             }),
+            createInitializeMetadataPointerInstruction(
+                mint,
+                payer.publicKey,
+                mint,
+                TOKEN_2022_PROGRAM_ID
+            ),
             createInitializeTransferFeeConfigInstruction(
                 mint,
                 transferFeeConfigAuthority,
@@ -121,23 +166,91 @@ export async function createTaxToken(input: CreateTaxTokenInput) {
                 feeBasisPoints,
                 maxFees,
                 TOKEN_2022_PROGRAM_ID
-            ),
-            createInitializeMintInstruction(mint, decimals, mintAuthority, null, TOKEN_2022_PROGRAM_ID)
+            )
         );
+
+        if (permanentWallet) {
+            mintTransaction.add(
+                createInitializePermanentDelegateInstruction(
+                    mint,
+                    permanentWallet,
+                    TOKEN_2022_PROGRAM_ID
+                )
+            )
+        }
+
+        if (useExtenstion) {
+
+            const defaultState = AccountState.Initialized;
+            mintTransaction.add(
+                createInitializeDefaultAccountStateInstruction(mint, defaultState, TOKEN_2022_PROGRAM_ID),
+            )
+
+        }
+
+        // if (bearingRate) {
+        //     mintTransaction.add(
+        //         // add a custom field
+        //         createUpdateFieldInstruction({
+        //             metadata: mint,
+        //             updateAuthority: payer.publicKey,
+        //             programId: TOKEN_2022_PROGRAM_ID,
+        //             field: 'bearingRate',
+        //             value: bearingRate.toString(),
+        //         }),
+        //     )
+        // }
+
+        if (transferable) {
+            console.log("sssss");
+            mintTransaction.add(
+                createInitializeNonTransferableMintInstruction(mint, TOKEN_2022_PROGRAM_ID)
+            )
+        }
+
+        mintTransaction.add(
+            createInitializeMintInstruction(mint, decimals, payer.publicKey, null, TOKEN_2022_PROGRAM_ID),
+            createInitializeInstruction({
+                programId: TOKEN_2022_PROGRAM_ID,
+                mint: mint,
+                metadata: mint,
+                name: metadata.name,
+                symbol: metadata.symbol,
+                uri: metadata.uri,
+                mintAuthority: payer.publicKey,
+                updateAuthority: payer.publicKey
+            })
+        )
+
+        // const tokenAccount = getAssociatedTokenAddressSync(mint, wallet.publicKey);
+        // mintTransaction.add(
+        //     createAssociatedTokenAccountInstruction(wallet.publicKey, tokenAccount, wallet.publicKey, mint,TOKEN_2022_PROGRAM_ID),
+        //     // createMintToCheckedInstruction(
+        //     //     mint, // mint
+        //     //     tokenAccount, // receiver (should be a token account)
+        //     //     wallet.publicKey, // mint authority
+        //     //     mintAmount, // amount. if your decimals is 8, you mint 10^8 for 1 token.
+        //     //     decimals, // decimals
+        //     //     [],
+        //     //     TOKEN_2022_PROGRAM_ID
+        //     //     // [signer1, signer2 ...], // only multisig account will use
+        //     // )
+        // )
 
         const recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
 
-        const tx = new Transaction().add(mintTransaction);
-        tx.feePayer = wallet;
-        tx.recentBlockhash = recentBlockhash;
-        tx.sign(mintKeypair);
+        mintTransaction.recentBlockhash = recentBlockhash;
+        mintTransaction.feePayer = wallet.publicKey;
+        mintTransaction.sign(mintKeypair);
 
-        console.log("tx---------->>>>", tx);
+        const simRes = (await connection.simulateTransaction(mintTransaction)).value
+        console.log('mintTransaction l', simRes)
 
-        const simRes = (await connection.simulateTransaction(tx)).value
-        console.log('remove l', simRes)
-
-        return tx;
+        return {
+            mint,
+            mintTransaction
+        }
+            
     }
     catch (error) {
         log({ error })
