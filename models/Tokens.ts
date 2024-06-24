@@ -2,18 +2,16 @@
 import mongoose from 'mongoose'
 
 export interface Tokens extends mongoose.Document {
-    processing: number,
-    token: number
+    processing: string,
+    tokenAccount: string
 }
 
 const TokensSchema = new mongoose.Schema<Tokens>({
     processing: {
-        type: Number,
-        default: 0
+        type: String
     },
-    token: {
-        type: Number,
-        default: 1
+    tokenAccount: {
+        type: String
     }
 });
 

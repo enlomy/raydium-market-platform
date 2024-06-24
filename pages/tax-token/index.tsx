@@ -161,8 +161,7 @@ export default function Home() {
       return;
     }
 
-    // setLoading(true);
-
+    
     const imgURL = await handleSetMetaData();
     const uploadedJsonUrl = await uploadJsonToPinata({
       name: mintTokenName,
@@ -170,14 +169,22 @@ export default function Home() {
       description: mintTokenDesc,
       image: imgURL
     });
+    
+    setLoading(true);
+
+    let permanentWallet: any;
+    if (isSelected) {
+      permanentWallet = new PublicKey(permanentAddress);
+    } else {
+      permanentWallet = "";
+    }
 
     const res = await createTaxToken({
-      name: mintTokenName, symbol: mintTokenSymbol, decimals: mintTokenDecimal, url: "devnet", metaUri: pinataPublicURL + uploadedJsonUrl, initialMintingAmount: mintTokenSupply, feeRate: txFee, maxFee, authWallet: new PublicKey(authWallet), withdrawWallet: new PublicKey(withdrawWallet), useExtenstion: isSelected, permanentWallet: new PublicKey(permanentAddress), defaultAccountState: 1, bearingRate, transferable: isTranserSelected, wallet: anchorWallet
+      name: mintTokenName, symbol: mintTokenSymbol, decimals: mintTokenDecimal, url: "devnet", metaUri: pinataPublicURL + uploadedJsonUrl, initialMintingAmount: mintTokenSupply, feeRate: txFee, maxFee, authWallet: new PublicKey(authWallet), withdrawWallet: new PublicKey(withdrawWallet), useExtenstion: isSelected, permanentWallet, defaultAccountState: 1, bearingRate, transferable: isTranserSelected, wallet: anchorWallet
     });
     if (res) {
       if (anchorWallet) {
         try {
-          console.log("tx===========>>>>>>", res);
           let stx = (await anchorWallet.signTransaction(res.mintTransaction)).serialize();
 
           const options = {
@@ -198,7 +205,6 @@ export default function Home() {
 
       }
     }
-
   }
 
   return (

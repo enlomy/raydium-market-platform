@@ -19,7 +19,8 @@ const toastError = (str: string) => {
 
 const toastSuccess = (str: string) => {
   toast.success(str, {
-    position: "top-center"
+    position: "top-center",
+    autoClose: false
   });
 }
 

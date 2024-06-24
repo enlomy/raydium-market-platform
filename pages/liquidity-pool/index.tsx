@@ -19,7 +19,8 @@ const toastError = (str: string) => {
 
 const toastSuccess = (str: string) => {
   toast.success(str, {
-    position: "top-center"
+    position: "top-center",
+    autoClose: false
   });
 }
 
@@ -139,7 +140,7 @@ export default function Home() {
     const res = await createMarket({ baseMint: new PublicKey(baseToken), quoteMint: new PublicKey(quoteToken), url: "devnet", orderSize: orderSize, priceTick: tickSize, wallet: anchorWallet, eventLength, requestLength, orderBookLength });
 
     if (res) {
-      console.log("res=====>>>>", res);
+
       if (anchorWallet) {
         try {
 
@@ -162,16 +163,22 @@ export default function Home() {
           await solanaConnection.confirmTransaction(txId1, "confirmed");
           console.log("txId2======>>", txId2);
 
-          toastSuccess(`${res.marketId} created successfully!`);
+          let stx3 = (await anchorWallet.signTransaction(res.tx3)).serialize();
+          console.log("length==>>>>", stx3.length);
+
+          const txId3 = await solanaConnection.sendRawTransaction(stx3, options);
+          await solanaConnection.confirmTransaction(txId3, "confirmed");
+          console.log("txId3======>>", txId3);
+
+          toastSuccess(`MarketID: ${res.marketId} created successfully!`);
 
           setMarketLoading(false);
 
-          // setLpLoading(true);
+          setLpLoading(true);
 
           const res1 = await createPool({ marketId: new PublicKey(res.marketId), baseMintAmount: baseTokenAmount, url: "devnet", quoteMintAmount: quoteTokenAmount, wallet: anchorWallet, launchTime: date });
 
           if (res1) {
-            console.log("lpres1ss=====>>>>", res1);
             if (anchorWallet) {
               try {
 
@@ -187,7 +194,7 @@ export default function Home() {
                 // toastSuccess(`${mintTokenSupply} token minted successfully!`);
                 console.log("txId======>>", txId);
 
-                toastSuccess(`${res1.poolId} created successfully!`);
+                toastSuccess(`PoolID: ${res1.poolId} created successfully!`);
                 setLpLoading(false);
               } catch (error: any) {
                 toastError(`${error.message}`);

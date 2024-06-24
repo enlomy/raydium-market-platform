@@ -27,9 +27,9 @@ export type CreateTaxTokenInput = {
     authWallet: web3.PublicKey,
     withdrawWallet: web3.PublicKey,
     useExtenstion: boolean,
-    permanentWallet?: web3.PublicKey,
+    permanentWallet?: web3.PublicKey | "",
     defaultAccountState?: number,
-    bearingRate?: number, 
+    bearingRate?: number,
     transferable?: boolean,
     wallet: any
 }

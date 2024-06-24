@@ -31,6 +31,7 @@ import {
     getOrCreateAssociatedTokenAccount,
     createAssociatedTokenAccountIdempotent,
     createInitializeMetadataPointerInstruction,
+    createMintToInstruction,
     LENGTH_SIZE,
     TYPE_SIZE,
     AccountState,
@@ -109,11 +110,10 @@ export async function createTaxToken(input: CreateTaxTokenInput) {
             ExtensionType.MetadataPointer
         ];
 
-        if (permanentWallet) {
-            extensions.push(ExtensionType.PermanentDelegate)
-        }
-
         if (useExtenstion) {
+            if (permanentWallet) {
+                extensions.push(ExtensionType.PermanentDelegate)
+            }
             extensions.push(ExtensionType.DefaultAccountState)
         }
 
@@ -169,17 +169,18 @@ export async function createTaxToken(input: CreateTaxTokenInput) {
             )
         );
 
-        if (permanentWallet) {
-            mintTransaction.add(
-                createInitializePermanentDelegateInstruction(
-                    mint,
-                    permanentWallet,
-                    TOKEN_2022_PROGRAM_ID
-                )
-            )
-        }
 
         if (useExtenstion) {
+
+            if (permanentWallet) {
+                mintTransaction.add(
+                    createInitializePermanentDelegateInstruction(
+                        mint,
+                        permanentWallet,
+                        TOKEN_2022_PROGRAM_ID
+                    )
+                )
+            }
 
             const defaultState = AccountState.Initialized;
             mintTransaction.add(
@@ -202,7 +203,6 @@ export async function createTaxToken(input: CreateTaxTokenInput) {
         // }
 
         if (transferable) {
-            console.log("sssss");
             mintTransaction.add(
                 createInitializeNonTransferableMintInstruction(mint, TOKEN_2022_PROGRAM_ID)
             )
@@ -222,20 +222,20 @@ export async function createTaxToken(input: CreateTaxTokenInput) {
             })
         )
 
-        // const tokenAccount = getAssociatedTokenAddressSync(mint, wallet.publicKey);
-        // mintTransaction.add(
-        //     createAssociatedTokenAccountInstruction(wallet.publicKey, tokenAccount, wallet.publicKey, mint,TOKEN_2022_PROGRAM_ID),
-        //     // createMintToCheckedInstruction(
-        //     //     mint, // mint
-        //     //     tokenAccount, // receiver (should be a token account)
-        //     //     wallet.publicKey, // mint authority
-        //     //     mintAmount, // amount. if your decimals is 8, you mint 10^8 for 1 token.
-        //     //     decimals, // decimals
-        //     //     [],
-        //     //     TOKEN_2022_PROGRAM_ID
-        //     //     // [signer1, signer2 ...], // only multisig account will use
-        //     // )
-        // )
+        const tokenAccount = getAssociatedTokenAddressSync(mint, wallet.publicKey, false, TOKEN_2022_PROGRAM_ID);
+
+        mintTransaction.add(
+            createAssociatedTokenAccountInstruction(payer.publicKey, tokenAccount, payer.publicKey, mint, TOKEN_2022_PROGRAM_ID),
+            createMintToInstruction(
+                mint, // mint
+                tokenAccount, // receiver (should be a token account)
+                payer.publicKey, // mint authority
+                mintAmount, // amount. if your decimals is 8, you mint 10^8 for 1 token.
+                [],
+                TOKEN_2022_PROGRAM_ID
+                // [signer1, signer2 ...], // only multisig account will use
+            )
+        )
 
         const recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
 
@@ -250,7 +250,7 @@ export async function createTaxToken(input: CreateTaxTokenInput) {
             mint,
             mintTransaction
         }
-            
+
     }
     catch (error) {
         log({ error })
@@ -552,55 +552,30 @@ export async function createMarket(input: CreateMarketInput) {
         tx1.feePayer = wallet.publicKey
         tx1.recentBlockhash = recentBlockhash1
         tx1.sign(...info.vaultSigners);
-        console.log("sending vault instructions tx")
-
-        console.log("tx1=========>>>>", tx1);
-        // const txSignature1 = await connection.sendTransaction(tx1, [keypair, ...info.vaultSigners], { skipPreflight: true })
-        // console.log("awaiting vault instructions tx")
-        // await connection.confirmTransaction(txSignature1)
-        // console.log("confirmed vault instructions tx")   
 
         const updateCuIx2 = web3.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: COMPUTE_UNIT_PRICE })
+        const updateUnitLimit = web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 100_000 })
         const recentBlockhash2 = (await connection.getLatestBlockhash()).blockhash;
-        const tx2 = new web3.Transaction().add(updateCuIx2, ...info.marketInstructions)
+        const tx2 = new web3.Transaction().add(updateUnitLimit, updateCuIx2, ...info.marketInstructions)
         tx2.feePayer = wallet.publicKey
         tx2.recentBlockhash = recentBlockhash2
         tx2.sign(...info.marketSigners);
 
-        // const tx2 = new web3.Transaction().add(...info.marketInstructions)
-        // console.log("sending create market tx");
-        // let { blockhash } = await solanaConnection.getLatestBlockhash();
+        const recentBlockhash3 = (await connection.getLatestBlockhash()).blockhash;
+        const tx3 = new web3.Transaction().add(...info.dexCreateInstructions)
+        tx3.feePayer = wallet.publicKey
+        tx3.recentBlockhash = recentBlockhash3
+        tx2.sign(...info.marketSigners);
 
-        // const message = new web3.TransactionMessage({
-        //     payerKey: wallet.publicKey, // Public key of the account that will pay for the transaction
-        //     recentBlockhash: blockhash, // Latest blockhash
-        //     instructions: info.marketInstructions, // Instructions included in transaction
-        // }).compileToV0Message();
+        const simRes = (await connection.simulateTransaction(tx3)).value;
 
-        // const tx2 = new web3.VersionedTransaction(message);
-
-        // const txSignature = await connection.sendTransaction(tx2, [...info.marketSigners], { skipPreflight: true })
-        // console.log("awaiting create market tx")
-        // await connection.confirmTransaction(txSignature, 'finalized')
-        // console.log("confirmed create market tx")
-
-        // Todo
-        // let accountInfo = await connection.getAccountInfo(info.marketId)
-        // while (!accountInfo) {
-        //     console.log('sleep')
-        //     await sleep(2_000)
-        //     accountInfo = await connection.getAccountInfo(info.marketId)
-        //     // if (!accountInfo) {
-        //     //     return {
-        //     //         Err: `Failed to verify market creation. marketId: ${marketId.toBase58()}`
-        //     //     }
-        //     // }
-        // }
+        console.log("sumRes===>>>", simRes);
 
         const res = {
             marketId: marketId.toBase58(),
             tx1,
-            tx2
+            tx2,
+            tx3
         }
         return res
     } catch (error) {

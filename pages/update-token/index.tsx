@@ -23,7 +23,8 @@ const toastError = (str: string) => {
 
 const toastSuccess = (str: string) => {
   toast.success(str, {
-    position: "top-center"
+    position: "top-center",
+    autoClose: false
   });
 }
 
@@ -212,7 +213,6 @@ export default function Home() {
   const getNfts = async () => {
     if (!anchorWallet) return [];
     const list = await getTokenList(anchorWallet.publicKey);
-    // console.log("list-=====>>>", list);
     setTokenList(list);
   };
 
@@ -230,7 +230,6 @@ export default function Home() {
         setUpdateAuth(false);
         setUpdateTokenMint(mintAddress);
         setTokenImmutable(filtered[0].isMutable);
-
       } else {
         setUpdateTokenMint("");
         setTokenImmutable(false);

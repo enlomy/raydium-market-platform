@@ -18,7 +18,8 @@ const toastError = (str: string) => {
 
 const toastSuccess = (str: string) => {
   toast.success(str, {
-    position: "top-center"
+    position: "top-center",
+    autoClose: false
   });
 }
 
@@ -167,11 +168,10 @@ export default function Home() {
       return;
     }
 
-    setLoading(true);
+    // setLoading(true);
     const res = await createMarket({ baseMint: new PublicKey(baseToken), quoteMint: new PublicKey(quoteToken), url: "devnet", orderSize: orderSize, priceTick: tickSize, wallet: anchorWallet, eventLength, requestLength, orderBookLength });
 
     if (res) {
-      console.log("res=====>>>>", res);
       if (anchorWallet) {
         try { 
           let stx1 = (await anchorWallet.signTransaction(res.tx1)).serialize();
@@ -183,16 +183,22 @@ export default function Home() {
 
           const txId1 = await solanaConnection.sendRawTransaction(stx1, options);
           await solanaConnection.confirmTransaction(txId1, "confirmed");
-          // toastSuccess(`${mintTokenSupply} token minted successfully!`);
           console.log("txId1======>>", txId1);
           
           let stx2 = (await anchorWallet.signTransaction(res.tx2)).serialize();
 
           const txId2 = await solanaConnection.sendRawTransaction(stx2, options);
-          await solanaConnection.confirmTransaction(txId1, "confirmed");
+          await solanaConnection.confirmTransaction(txId2, "confirmed");
           console.log("txId2======>>", txId2);
 
-          toastSuccess(`${res.marketId} created successfully!`);
+
+          let stx3 = (await anchorWallet.signTransaction(res.tx3)).serialize();
+
+          const txId3 = await solanaConnection.sendRawTransaction(stx3, options);
+          await solanaConnection.confirmTransaction(txId3, "confirmed");
+          console.log("txId3======>>", txId3);
+
+          toastSuccess(`MarketID: ${res.marketId} created successfully!`);
 
           setLoading(false);
         } catch (error: any) {
