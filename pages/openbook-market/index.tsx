@@ -168,7 +168,7 @@ export default function Home() {
       return;
     }
 
-    // setLoading(true);
+    setLoading(true);
     const res = await createMarket({ baseMint: new PublicKey(baseToken), quoteMint: new PublicKey(quoteToken), url: "devnet", orderSize: orderSize, priceTick: tickSize, wallet: anchorWallet, eventLength, requestLength, orderBookLength });
 
     if (res) {
