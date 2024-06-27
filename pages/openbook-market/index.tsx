@@ -168,12 +168,12 @@ export default function Home() {
       return;
     }
 
-    setLoading(true);
+    // setLoading(true);
     const res = await createMarket({ baseMint: new PublicKey(baseToken), quoteMint: new PublicKey(quoteToken), url: "devnet", orderSize: orderSize, priceTick: tickSize, wallet: anchorWallet, eventLength, requestLength, orderBookLength });
 
     if (res) {
       if (anchorWallet) {
-        try { 
+        try {
           let stx1 = (await anchorWallet.signTransaction(res.tx1)).serialize();
 
           const options = {
@@ -184,7 +184,7 @@ export default function Home() {
           const txId1 = await solanaConnection.sendRawTransaction(stx1, options);
           await solanaConnection.confirmTransaction(txId1, "confirmed");
           console.log("txId1======>>", txId1);
-          
+
           let stx2 = (await anchorWallet.signTransaction(res.tx2)).serialize();
 
           const txId2 = await solanaConnection.sendRawTransaction(stx2, options);
@@ -367,6 +367,7 @@ export default function Home() {
                 defaultValue="128"
                 className=" h-[40px] col-span-3"
                 value={eventLength.toString()}
+                onChange={(e) => { setEventLength(Number(e.target.value)); }}
               />
               <Input
                 isRequired
@@ -377,6 +378,7 @@ export default function Home() {
                 defaultValue="63"
                 className=" h-[40px] col-span-3"
                 value={requestLength.toString()}
+                onChange={(e) => { setRequestLength(Number(e.target.value)); }}
               />
               <Input
                 isRequired
@@ -387,7 +389,7 @@ export default function Home() {
                 defaultValue="909"
                 className=" h-[40px] col-span-3"
                 value={orderBookLength.toString()}
-
+                onChange={(e) => { setOrderBookLength(Number(e.target.value)); }}
               />
             </div> : null}
             <div className=" flex w-full justify-center col-span-12 pt-5">
