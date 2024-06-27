@@ -15,6 +15,7 @@ export default function ProSidebar() {
             <Menu
                 rootStyles={{
                     fontSize: "16px",
+                    color: "#000"
                 }}
 
                 menuItemStyles={{
