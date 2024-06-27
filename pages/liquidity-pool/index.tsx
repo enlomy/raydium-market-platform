@@ -256,7 +256,7 @@ export default function Home() {
 
   return (
     <main
-      className={`flex flex-col min-h-screen px-16 py-6 bg-[#f0f4fd] font-IT w-full gap-5 h-screen`}
+      className={`flex flex-col min-h-screen px-16 py-6 bg-[#f0f4fd] font-IT w-full gap-5 h-screen text-black`}
     >
       <Header />
       <div className=" w-full h-full flex gap-6">
