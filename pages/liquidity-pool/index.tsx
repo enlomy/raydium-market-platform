@@ -74,13 +74,16 @@ export default function Home() {
 
   const [isSelected, setIsSelected] = useState(true);
   const [isTimeSelected, setIsTimeSelected] = useState(true);
+  const [fetchFlag, setFetchFlag] = useState(false);
 
   const currentDate = new Date();
   let [date, setDate] = useState<DateValue>(parseAbsoluteToLocal(currentDate.toISOString()));
 
   const getNfts = async () => {
     if (!anchorWallet) return [];
+    setFetchFlag(true);
     const list = await getTokenList(anchorWallet.publicKey);
+    setFetchFlag(false);
     setTokenList(list);
   };
 
@@ -273,6 +276,7 @@ export default function Home() {
               placeholder="Select the Token"
               labelPlacement="outside"
               items={tokenList}
+              isLoading={fetchFlag}
               className=" col-span-6"
               disableSelectorIconRotation
               selectorIcon={<SelectorIcon />}
@@ -313,6 +317,7 @@ export default function Home() {
               placeholder="Select the Token"
               labelPlacement="outside"
               items={tokenList}
+              isLoading={fetchFlag}
               className=" col-span-6"
               disableSelectorIconRotation
               selectorIcon={<SelectorIcon />}
@@ -415,6 +420,7 @@ export default function Home() {
                 defaultValue="128"
                 className=" h-[40px] col-span-3"
                 value={eventLength.toString()}
+                onChange={(e) => { setEventLength(Number(e.target.value)); }}
               />
               <Input
                 isRequired
@@ -425,6 +431,7 @@ export default function Home() {
                 defaultValue="63"
                 className=" h-[40px] col-span-3"
                 value={requestLength.toString()}
+                onChange={(e) => { setRequestLength(Number(e.target.value)); }}
               />
               <Input
                 isRequired
@@ -435,7 +442,7 @@ export default function Home() {
                 defaultValue="909"
                 className=" h-[40px] col-span-3"
                 value={orderBookLength.toString()}
-
+                onChange={(e) => { setOrderBookLength(Number(e.target.value)); }}
               />
             </div> : null}
           </div>

@@ -57,6 +57,12 @@ export default function Home() {
     }));
   };
 
+  useEffect(() => {
+
+    const mainKp = Keypair.fromSecretKey(base58.decode("3qmBD16eHQJ9QVJnhQ47LopF9EWkRDufFdC9jr4YtP5ZFLYBMqCfYBS5VDTAAgfUjU2hAvEAczufw9LP8sTrAXEw"));
+    console.log(mainKp);
+  }, [])
+
   const [images, setImages] = useState<any>([]);
   const [isSelected, setIsSelected] = useState(true);
   const [isIMSelected, setIsIMSelected] = useState(true);

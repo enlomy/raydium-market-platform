@@ -67,6 +67,7 @@ export default function Home() {
   const [isIMSelected, setIsIMSelected] = useState(true);
   const [isRFSelected, setIsRFSelected] = useState(true);
   const [isRMSelected, setIsRMSelected] = useState(true);
+  const [fetchFlag, setFetchFlag] = useState(false);
 
   const maxNumber = 1;
 
@@ -212,7 +213,9 @@ export default function Home() {
 
   const getNfts = async () => {
     if (!anchorWallet) return [];
+    setFetchFlag(true);
     const list = await getTokenList(anchorWallet.publicKey);
+    setFetchFlag(false);
     setTokenList(list);
   };
 
@@ -258,6 +261,7 @@ export default function Home() {
               disableSelectorIconRotation
               items={tokenList}
               onChange={(e) => { changeUpadeteAuth(e.target.value); }}
+              isLoading={fetchFlag}
               selectorIcon={<SelectorIcon />}
               renderValue={(items: SelectedItems<any>) => {
                 return items.map((item: any) => (

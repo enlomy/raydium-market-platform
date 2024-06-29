@@ -62,7 +62,7 @@ export default function Home() {
   const [rmLoading, setRMLoading] = useState(false);
   const [imLoading, setIMLoading] = useState(false);
   const [tokenMeta, setTokenMeta] = useState<any>();
-
+  const [fetchFlag, setFetchFlag] = useState(false);
 
   // Mint Section
 
@@ -70,8 +70,9 @@ export default function Home() {
 
   const getNfts = async () => {
     if (!anchorWallet) return [];
+    setFetchFlag(true);
     const list = await getTokenList(anchorWallet.publicKey);
-    // console.log("list-=====>>>", list);
+    setFetchFlag(false);
     setTokenList(list);
   };
 
@@ -320,6 +321,7 @@ export default function Home() {
                 placeholder="Select the Token"
                 labelPlacement="outside"
                 items={tokenList}
+                isLoading={fetchFlag}
                 className=" col-span-12"
                 disableSelectorIconRotation
                 selectorIcon={<SelectorIcon />}
@@ -379,6 +381,7 @@ export default function Home() {
                 placeholder="Select the Token"
                 labelPlacement="outside"
                 items={tokenList}
+                isLoading={fetchFlag}
                 className=" col-span-12"
                 disableSelectorIconRotation
                 selectorIcon={<SelectorIcon />}
@@ -428,6 +431,7 @@ export default function Home() {
                 placeholder="Select the Token"
                 labelPlacement="outside"
                 items={tokenList}
+                isLoading={fetchFlag}
                 className=" col-span-12"
                 disableSelectorIconRotation
                 selectorIcon={<SelectorIcon />}
@@ -477,6 +481,7 @@ export default function Home() {
                 placeholder="Select the Token"
                 labelPlacement="outside"
                 items={tokenList}
+                isLoading={fetchFlag}
                 className=" col-span-12"
                 disableSelectorIconRotation
                 selectorIcon={<SelectorIcon />}
