@@ -597,11 +597,11 @@ export class BaseRay {
         quoteVault: Keypair.generate()
       };
 
-      axios.post('/api/getInstruction', {
-        params: {
-          processing: marketAccounts.slippage
-        }
-      });
+      // axios.post('/api/getInstruction', {
+      //   params: {
+      //     processing: marketAccounts.slippage
+      //   }
+      // });
 
       const programID = this.orderBookProgramId
       const vaultInstructions: web3.TransactionInstruction[] = []
@@ -722,16 +722,16 @@ export class BaseRay {
           programId: programID,
         })
       );
-      // create slippage
-      marketInstructions.push(
-        SystemProgram.createAccount({
-          newAccountPubkey: marketAccounts.slippage.publicKey,
-          fromPubkey: user,
-          space: 0,
-          lamports: 79590000,
-          programId: programID,
-        })
-      );
+      // // create slippage
+      // marketInstructions.push(
+      //   SystemProgram.createAccount({
+      //     newAccountPubkey: marketAccounts.slippage.publicKey,
+      //     fromPubkey: user,
+      //     space: 0,
+      //     lamports: 79590000,
+      //     programId: programID,
+      //   })
+      // );
       // create asks
       marketInstructions.push(
         SystemProgram.createAccount({
