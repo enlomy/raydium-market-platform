@@ -67,3 +67,9 @@ Contributions are welcome! Please submit a pull request or open an issue to disc
 ### License
 
 This project is licensed under the MIT License.
+
+## Contact
+
+### Please fork to use it and follow me on github.
+
+### If you want more customized app, please contact [@poseiman](https://t.me/poseiman) in Telegram and [.solbotdev](https://discordapp.com/users/1074553493974691840) in Discord
