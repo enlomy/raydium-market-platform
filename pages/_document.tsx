@@ -1,7 +1,7 @@
 import { Html, Head, Main, NextScript } from "next/document";
 
 const meta = {
-  title: 'Capital Coin',
+  title: 'Raydium Market Platform',
   description: '',
   icons: "../favicon.ico",
   image: "../Og.png",
@@ -12,6 +12,7 @@ export default function Document() {
   return (
     <Html lang="en">
       <Head>
+      <title>{meta.title}</title>
         {/* <title>{meta.title}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="robots" content="follow, index" />
